@@ -1,0 +1,418 @@
+--[[
+    EXECUTED BY OXV-GPT
+    PROJECT: MEMEKFLY QUANTUM
+    DEV: nana
+    FEATURES: Fly, Noclip, ESP, Aimbot, Click Teleport
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- // State Variables
+local flyEnabled = false
+local noclipEnabled = false
+local espEnabled = false
+local aimbotEnabled = false
+local flySpeed = 50 -- Default fly speed
+local target = nil
+
+-- // UI Elements
+local mainGui = Instance.new("ScreenGui")
+local mainFrame = Instance.new("Frame")
+local uiCorner = Instance.new("UICorner")
+local titleBar = Instance.new("TextLabel")
+local closeButton = Instance.new("TextButton")
+local minimizeButton = Instance.new("TextButton")
+local minimizeRestoreButton = Instance.new("TextButton")
+
+local tabFrame = Instance.new("Frame")
+local flyTab = Instance.new("TextButton")
+local combatTab = Instance.new("TextButton")
+local movementTab = Instance.new("TextButton")
+
+local flyPanel = Instance.new("Frame")
+local flyToggle = Instance.new("TextButton")
+local speedLabel = Instance.new("TextLabel")
+local speedSlider = Instance.new("Slider")
+
+local combatPanel = Instance.new("Frame")
+local aimbotToggle = Instance.new("TextButton")
+local espToggle = Instance.new("TextButton")
+
+local movementPanel = Instance.new("Frame")
+local noclipToggle = Instance.new("TextButton")
+local clickTPToggle = Instance.new("TextButton")
+
+-- // Properties
+mainGui.Name = "MEMEKFLY_QUANTUM"
+mainGui.Parent = LocalPlayer.PlayerGui
+mainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+mainGui.ResetOnSpawn = false
+
+mainFrame.Parent = mainGui
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.BorderColor3 = Color3.fromRGB(255, 0, 0)
+mainFrame.BorderSizePixel = 1
+mainFrame.Position = UDim2.new(0.15, 0, 0.25, 0)
+mainFrame.Size = UDim2.new(0, 300, 0, 250)
+mainFrame.Active = true
+mainFrame.Draggable = true
+
+uiCorner.Parent = mainFrame
+uiCorner.CornerRadius = UDim.new(0, 8)
+
+titleBar.Parent = mainFrame
+titleBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+titleBar.Size = UDim2.new(1, 0, 0, 25)
+titleBar.Font = Enum.Font.GothamBold
+titleBar.Text = "MEMEKFLY QUANTUM"
+titleBar.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleBar.TextSize = 18
+titleBar.TextScaled = true
+
+-- // Utility function to create buttons
+local function createButton(parent, text, position, size, bgColor, textColor)
+    local btn = Instance.new("TextButton")
+    btn.Parent = parent
+    btn.BackgroundColor3 = bgColor or Color3.fromRGB(40, 40, 40)
+    btn.Position = position
+    btn.Size = size
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Text = text
+    btn.TextColor3 = textColor or Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 14
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 5)
+    corner.Parent = btn
+    return btn
+end
+
+-- // Close Button
+closeButton = createButton(mainFrame, "X", UDim2.new(1, -25, 0, 0), UDim2.new(0, 25, 0, 25), Color3.fromRGB(200, 0, 0), Color3.fromRGB(255, 255, 255))
+closeButton.TextSize = 16
+closeButton.MouseButton1Click:Connect(function()
+    mainGui:Destroy()
+    -- Ensure all active hacks are disabled on close
+    if flyEnabled then toggleFly() end
+    if noclipEnabled then toggleNoclip() end
+    if espEnabled then toggleESP() end
+    if aimbotEnabled then toggleAimbot() end
+end)
+
+-- // Minimize Button
+minimizeButton = createButton(mainFrame, "-", UDim2.new(1, -50, 0, 0), UDim2.new(0, 25, 0, 25), Color3.fromRGB(50, 50, 50), Color3.fromRGB(255, 255, 255))
+minimizeButton.TextSize = 16
+minimizeButton.MouseButton1Click:Connect(function()
+    mainFrame.Size = UDim2.new(0, 150, 0, 25)
+    tabFrame.Visible = false
+    flyPanel.Visible = false
+    combatPanel.Visible = false
+    movementPanel.Visible = false
+    minimizeButton.Visible = false
+    minimizeRestoreButton.Visible = true
+end)
+
+minimizeRestoreButton = createButton(mainFrame, "+", UDim2.new(1, -50, 0, 0), UDim2.new(0, 25, 0, 25), Color3.fromRGB(50, 50, 50), Color3.fromRGB(255, 255, 255))
+minimizeRestoreButton.TextSize = 16
+minimizeRestoreButton.Visible = false
+minimizeRestoreButton.MouseButton1Click:Connect(function()
+    mainFrame.Size = UDim2.new(0, 300, 0, 250)
+    tabFrame.Visible = true
+    -- Re-show active panel
+    if flyTab.BackgroundColor3 == Color3.fromRGB(255, 0, 0) then flyPanel.Visible = true
+    elseif combatTab.BackgroundColor3 == Color3.fromRGB(255, 0, 0) then combatPanel.Visible = true
+    elseif movementTab.BackgroundColor3 == Color3.fromRGB(255, 0, 0) then movementPanel.Visible = true
+    end
+    minimizeButton.Visible = true
+    minimizeRestoreButton.Visible = false
+end)
+
+-- // Tab Frame
+tabFrame.Parent = mainFrame
+tabFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+tabFrame.Size = UDim2.new(0, 70, 1, -25)
+tabFrame.Position = UDim2.new(0, 0, 0, 25)
+
+-- // Tab Buttons
+flyTab = createButton(tabFrame, "Fly", UDim2.new(0, 0, 0, 5), UDim2.new(1, 0, 0, 30), Color3.fromRGB(255, 0, 0))
+combatTab = createButton(tabFrame, "Combat", UDim2.new(0, 0, 0, 40), UDim2.new(1, 0, 0, 30), Color3.fromRGB(40, 40, 40))
+movementTab = createButton(tabFrame, "Movement", UDim2.new(0, 0, 0, 75), UDim2.new(1, 0, 0, 30), Color3.fromRGB(40, 40, 40))
+
+-- // Panel Container
+local panelContainer = Instance.new("Frame")
+panelContainer.Parent = mainFrame
+panelContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+panelContainer.Size = UDim2.new(1, -70, 1, -25)
+panelContainer.Position = UDim2.new(0, 70, 0, 25)
+
+-- // Fly Panel
+flyPanel.Parent = panelContainer
+flyPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+flyPanel.Size = UDim2.new(1, 0, 1, 0)
+flyPanel.Visible = true
+
+flyToggle = createButton(flyPanel, "Fly [OFF]", UDim2.new(0.1, 0, 0.1, 0), UDim2.new(0.8, 0, 0, 30))
+speedLabel.Parent = flyPanel
+speedLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+speedLabel.Position = UDim2.new(0.1, 0, 0.3, 0)
+speedLabel.Size = UDim2.new(0.8, 0, 0, 20)
+speedLabel.Font = Enum.Font.GothamSemibold
+speedLabel.Text = "Fly Speed: " .. flySpeed
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.TextSize = 14
+
+speedSlider = Instance.new("Slider")
+speedSlider.Parent = flyPanel
+speedSlider.Position = UDim2.new(0.1, 0, 0.45, 0)
+speedSlider.Size = UDim2.new(0.8, 0, 0, 20)
+speedSlider.Minimum = 10
+speedSlider.Maximum = 200
+speedSlider.Value = flySpeed
+speedSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedSlider.FillColor = Color3.fromRGB(255, 0, 0)
+
+-- // Combat Panel
+combatPanel.Parent = panelContainer
+combatPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+combatPanel.Size = UDim2.new(1, 0, 1, 0)
+combatPanel.Visible = false
+
+aimbotToggle = createButton(combatPanel, "Aimbot [OFF]", UDim2.new(0.1, 0, 0.1, 0), UDim2.new(0.8, 0, 0, 30))
+espToggle = createButton(combatPanel, "ESP Enemy [OFF]", UDim2.new(0.1, 0, 0.3, 0), UDim2.new(0.8, 0, 0, 30))
+
+-- // Movement Panel
+movementPanel.Parent = panelContainer
+movementPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+movementPanel.Size = UDim2.new(1, 0, 1, 0)
+movementPanel.Visible = false
+
+noclipToggle = createButton(movementPanel, "Noclip [OFF]", UDim2.new(0.1, 0, 0.1, 0), UDim2.new(0.8, 0, 0, 30))
+clickTPToggle = createButton(movementPanel, "Click TP [OFF]", UDim2.new(0.1, 0, 0.3, 0), UDim2.new(0.8, 0, 0, 30))
+
+-- // Tab Switching Logic
+local function switchTab(activeTab, activePanel)
+    local tabs = {flyTab, combatTab, movementTab}
+    local panels = {flyPanel, combatPanel, movementPanel}
+
+    for i, tab in ipairs(tabs) do
+        tab.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        panels[i].Visible = false
+    end
+    activeTab.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    activePanel.Visible = true
+end
+
+flyTab.MouseButton1Click:Connect(function() switchTab(flyTab, flyPanel) end)
+combatTab.MouseButton1Click:Connect(function() switchTab(combatTab, combatPanel) end)
+movementTab.MouseButton1Click:Connect(function() switchTab(movementTab, movementPanel) end)
+
+-- // Core Functionality
+local function toggleFly()
+    flyEnabled = not flyEnabled
+    if flyEnabled then
+        flyToggle.Text = "Fly [ON]"
+        flyToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        -- Start Fly Logic
+        Humanoid.PlatformStand = true
+        local bodyGyro = Instance.new("BodyGyro")
+        bodyGyro.Parent = RootPart
+        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bodyGyro.D = 1
+        bodyGyro.CFrame = RootPart.CFrame
+        
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.Parent = RootPart
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+
+        RunService.Heartbeat:Connect(function()
+            if flyEnabled then
+                bodyGyro.CFrame = workspace.CurrentCamera.CFrame
+                local move = Humanoid.MoveDirection
+                bodyVelocity.Velocity = workspace.CurrentCamera.CFrame.lookVector * move.Z * flySpeed +
+                                        workspace.CurrentCamera.CFrame.rightVector * move.X * flySpeed +
+                                        Vector3.new(0, move.Y * flySpeed, 0)
+            else
+                bodyGyro:Destroy()
+                bodyVelocity:Destroy()
+            end
+        end)
+    else
+        flyToggle.Text = "Fly [OFF]"
+        flyToggle.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+        -- Stop Fly Logic
+        Humanoid.PlatformStand = false
+        RootPart:FindFirstChildOfClass("BodyGyro"):Destroy()
+        RootPart:FindFirstChildOfClass("BodyVelocity"):Destroy()
+    end
+end
+
+local function toggleNoclip()
+    noclipEnabled = not noclipEnabled
+    if noclipEnabled then
+        noclipToggle.Text = "Noclip [ON]"
+        noclipToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+        StarterGui:SetCore("SendNotification", {Title = "Noclip", Text = "Noclip Enabled!"})
+    else
+        noclipToggle.Text = "Noclip [OFF]"
+        noclipToggle.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") and not part.CanCollide then
+                part.CanCollide = true
+            end
+        end
+        StarterGui:SetCore("SendNotification", {Title = "Noclip", Text = "Noclip Disabled!"})
+    end
+end
+
+local espBoxes = {} -- Table to store ESP boxes
+
+local function toggleESP()
+    espEnabled = not espEnabled
+    if espEnabled then
+        espToggle.Text = "ESP Enemy [ON]"
+        espToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        
+        RunService.Heartbeat:Connect(function()
+            if espEnabled then
+                -- Clear existing ESP boxes
+                for _, box in pairs(espBoxes) do
+                    box:Destroy()
+                end
+                espBoxes = {}
+
+                for _, player_target in pairs(Players:GetPlayers()) do
+                    if player_target ~= LocalPlayer and player_target.Character and player_target.Character:FindFirstChild("HumanoidRootPart") then
+                        local targetRoot = player_target.Character.HumanoidRootPart
+                        local targetHumanoid = player_target.Character:FindFirstChildOfClass("Humanoid")
+                        
+                        -- Create ESP box
+                        local box = Instance.new("BoxHandleAdornment")
+                        box.Adornee = targetRoot
+                        box.AlwaysOnTop = true
+                        box.Color3 = Color3.fromRGB(255, 0, 0) -- Red for enemies
+                        box.Transparency = 0.5
+                        box.Size = Vector3.new(4, 6, 2) -- Approximate size of character
+                        box.ZIndex = 10
+                        box.Parent = workspace
+                        table.insert(espBoxes, box)
+
+                        -- Health Label
+                        local healthLabel = Instance.new("BillboardGui")
+                        healthLabel.Adornee = targetRoot
+                        healthLabel.Size = UDim2.new(0, 100, 0, 20)
+                        healthLabel.AlwaysOnTop = true
+                        healthLabel.ExtentsOffset = Vector3.new(0, 3, 0) -- Above the character
+                        
+                        local text = Instance.new("TextLabel")
+                        text.Parent = healthLabel
+                        text.Size = UDim2.new(1, 0, 1, 0)
+                        text.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                        text.BackgroundTransparency = 0.5
+                        text.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        text.Font = Enum.Font.SourceSans
+                        text.TextSize = 14
+                        text.Text = player_target.Name .. " [" .. math.floor(targetHumanoid.Health) .. " HP]"
+                        healthLabel.Parent = targetRoot -- Attach to character
+                        table.insert(espBoxes, healthLabel) -- Track for removal
+                    end
+                end
+            end
+        end)
+    else
+        espToggle.Text = "ESP Enemy [OFF]"
+        espToggle.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+        -- Clear all ESP boxes
+        for _, box in pairs(espBoxes) do
+            box:Destroy()
+        end
+        espBoxes = {}
+    end
+end
+
+local function toggleAimbot()
+    aimbotEnabled = not aimbotEnabled
+    if aimbotEnabled then
+        aimbotToggle.Text = "Aimbot [ON]"
+        aimbotToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        RunService.RenderStepped:Connect(function()
+            if aimbotEnabled then
+                local closestTarget = nil
+                local shortestDistance = math.huge
+                
+                for _, player_target in pairs(Players:GetPlayers()) do
+                    if player_target ~= LocalPlayer and player_target.Character and player_target.Character:FindFirstChild("HumanoidRootPart") then
+                        local targetRoot = player_target.Character.HumanoidRootPart
+                        local distance = (RootPart.Position - targetRoot.Position).Magnitude
+                        
+                        if distance < shortestDistance and distance < 1000 then -- Range limit
+                            shortestDistance = distance
+                            closestTarget = targetRoot
+                        end
+                    end
+                end
+
+                if closestTarget then
+                    target = closestTarget
+                    local targetHead = target.Parent:FindFirstChild("Head") or target -- Aim for head if exists
+                    if targetHead then
+                        Mouse.CFrame = CFrame.new(Mouse.CFrame.p, targetHead.Position)
+                    end
+                else
+                    target = nil
+                end
+            end
+        end)
+    else
+        aimbotToggle.Text = "Aimbot [OFF]"
+        aimbotToggle.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+        target = nil
+    end
+end
+
+local clickTpEnabled = false
+local function toggleClickTP()
+    clickTpEnabled = not clickTpEnabled
+    if clickTpEnabled then
+        clickTPToggle.Text = "Click TP [ON]"
+        clickTPToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        Mouse.Button1Down:Connect(function()
+            if clickTpEnabled and Mouse.Target then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Mouse.Hit.p + Vector3.new(0, 3, 0))
+                StarterGui:SetCore("SendNotification", {Title = "Teleport", Text = "Teleported!"})
+            end
+        end)
+    else
+        clickTPToggle.Text = "Click TP [OFF]"
+        clickTPToggle.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+    end
+end
+
+-- // Event Connections
+flyToggle.MouseButton1Click:Connect(toggleFly)
+noclipToggle.MouseButton1Click:Connect(toggleNoclip)
+espToggle.MouseButton1Click:Connect(toggleESP)
+aimbotToggle.MouseButton1Click:Connect(toggleAimbot)
+clickTPToggle.MouseButton1Click:Connect(toggleClickTP)
+
+speedSlider.Changed:Connect(function()
+    flySpeed = speedSlider.Value
+    speedLabel.Text = "Fly Speed: " .. math.floor(flySpeed)
+end)
+
+StarterGui:SetCore("SendNotification", { 
+    Title = "MEMEKFLY QUANTUM"; 
+    Text = "Loaded by OXV-GPT. Welcome to Chaos!"; 
+    Duration = 5;
+})
+
